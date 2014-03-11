@@ -11,6 +11,7 @@ typedef std::pair<int,int> pii;
 vector<vector<set<unsigned int> > > M;
 particle_t *particles;
 
+//TODO: fixa skalning i pos2grid, återställ density i common.cpp, använd inte set_size för att ta reda på grid size.
 pii pos2grid(particle_t p){
     return pii((int) p.x, (int) p.y);
 }
