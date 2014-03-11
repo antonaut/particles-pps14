@@ -13,7 +13,7 @@ double size;
 //
 //  tuned constants
 //
-#define density 0.0005
+#define density /*^(-1)*/ 4//0.0005
 #define mass    0.01
 #define cutoff  0.01
 #define min_r   (cutoff/100)
@@ -39,9 +39,11 @@ double read_timer( )
 //
 //  keep density constant
 //
-void set_size( int n )
+double set_size( int n )
 {
     size = sqrt( density * n );
+    printf("size: %lf\n",size);
+    return size;
 }
 
 //
@@ -85,11 +87,11 @@ void init_particles( int n, particle_t *p )
 //
 //  interact two particles
 //
-void apply_force( particle_t &particle, particle_t &neighbor )
+void apply_force( particle_t *particle, particle_t *neighbor )
 {
 
-    double dx = neighbor.x - particle.x;
-    double dy = neighbor.y - particle.y;
+    double dx = neighbor->x - particle->x;
+    double dy = neighbor->y - particle->y;
     double r2 = dx * dx + dy * dy;
     if( r2 > cutoff*cutoff )
         return;
@@ -100,8 +102,8 @@ void apply_force( particle_t &particle, particle_t &neighbor )
     //  very simple short-range repulsive force
     //
     double coef = ( 1 - cutoff / r ) / r2 / mass;
-    particle.ax += coef * dx;
-    particle.ay += coef * dy;
+    particle->ax += coef * dx;
+    particle->ay += coef * dy;
 }
 
 //

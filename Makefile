@@ -5,9 +5,9 @@ CC = g++
 MPCC =  mpic++
 OPENMP = -fopenmp
 LIBS = -lm
-CFLAGS = -O3
+CFLAGS = -g
 
-TARGETS = serial pthreads openmp mpi
+TARGETS = serial pthreads openmp mpi linearserial
 
 all:	$(TARGETS)
 
@@ -19,6 +19,8 @@ openmp: openmp.o common.o
 	$(CC) -o $@ $(LIBS) $(OPENMP) openmp.o common.o
 mpi: mpi.o common.o
 	$(MPCC) -o $@ $(LIBS) $(MPILIBS) mpi.o common.o
+linearserial: linearserial.o common.o
+	$(CC) -o $@ $(LIBS) linearserial.o common.o
 
 openmp.o: openmp.cpp common.h
 	$(CC) -c $(OPENMP) $(CFLAGS) openmp.cpp
@@ -30,6 +32,9 @@ mpi.o: mpi.cpp common.h
 	$(MPCC) -c $(CFLAGS) mpi.cpp
 common.o: common.cpp common.h
 	$(CC) -c $(CFLAGS) common.cpp
+linearserial.o: linearserial.cpp common.h
+	$(CC) -c $(CFLAGS) linearserial.cpp
+	
 
 clean:
 	rm -f *.o $(TARGETS)

@@ -3,8 +3,8 @@
 #include <stdarg.h>    
 #include <vector>
 #include <sys/time.h>
-#include <SDL.h>
-#include <SDL_opengl.h>
+#include <SDL/SDL.h>
+#include <SDL/SDL_opengl.h>
 
 #define DEFAULT_FILENAME "sample.txt"
 #define eps 0.1
