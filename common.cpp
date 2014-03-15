@@ -14,8 +14,8 @@ static double size;
 //  tuned constants
 //
 const double density = /*^(-1)*/ 0.01;
-const double mass    = 10000;
-const double cutoff  = 10;
+const double mass    = 30;
+const double cutoff  = 0.8;
 const double min_r   = (cutoff/100);
 const double dt      = 0.0005;
 
@@ -80,12 +80,6 @@ void init_particles( int n, particle_t *p )
         //
         p[i].vx = drand48()*2-1;
         p[i].vy = drand48()*2-1;
-
-        //
-        //  just in case
-        //
-        p[i].ax = 0;
-        p[i].ay = 0;
     }
     free( shuffle );
 }
@@ -133,13 +127,11 @@ void move( particle_t &p )
     {
         p.x  = p.x < 0 ? -p.x : 2*size-p.x;
         p.vx = -p.vx;
-        p.ax = 0;
     }
     while( p.y < 0 || p.y > size )
     {
         p.y  = p.y < 0 ? -p.y : 2*size-p.y;
         p.vy = -p.vy;
-        p.ay = 0;
     }
 }
 

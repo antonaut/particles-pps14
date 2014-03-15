@@ -5,7 +5,7 @@
 #include <vector>
 #include "common.h"
 #include <set>
-#define DEBUG
+//#define DEBUG
 using std::vector;
 using std::set;
 typedef std::pair<int,int> pii;
@@ -55,7 +55,7 @@ void nf(pii pos, int i){
 #ifdef DEBUG        
         printf("%u\n",*it);
 #endif
-        if (i != *it)
+  //      if (i != *it)
             apply_force(&particles[i],&particles[*it]);
     }
 }
@@ -80,7 +80,7 @@ int main( int argc, char **argv )
     
     FILE *fsave = savename ? fopen( savename, "w" ) : NULL;
     particles = (particle_t*) malloc( n * sizeof(particle_t) );
-    size = ceil(sqrt( 16 * n ));
+    size = ceil(sqrt( 32 * n ));
     scale = double(size)/set_size(n);
     printf("integer size: %i\n",size);
     printf("Scale: %lf\n",scale);
@@ -105,8 +105,12 @@ int main( int argc, char **argv )
 
         for (int i = 0; i < n; ++i)
         {
+            particles[i].ax = particles[i].ay = 0;
             particle_t p = particles[i];
             pii pos = pos2grid(p);
+            
+            nf(pos, i);
+
             if (pos.second != 0) {
                 nf(up(pos),i);
                 if (pos.first != 0)
@@ -128,8 +132,6 @@ int main( int argc, char **argv )
             if (pos.first != size-1)
                 nf(right(pos), i);
 
-            nf(pos, i);
-
         }
 
 
@@ -142,7 +144,7 @@ int main( int argc, char **argv )
         }
         */
         //
-        //  move particles and uptade grid
+        //  move particles and update grid
         //
         for( int i = 0; i < n; i++ ) {
             
