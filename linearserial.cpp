@@ -5,15 +5,18 @@
 #include <vector>
 #include "common.h"
 #include <set>
+#define DEBUG
 using std::vector;
 using std::set;
 typedef std::pair<int,int> pii;
 vector<vector<set<unsigned int> > > M;
 particle_t *particles;
+static int size; 
+static double scale;
 
 //TODO: fixa skalning i pos2grid, återställ density i common.cpp, använd inte set_size för att ta reda på grid size.
 pii pos2grid(particle_t p){
-    return pii((int) p.x, (int) p.y);
+    return pii((int) (p.x*scale), (int) (p.y*scale));
 }
 pii up(pii p){
     return pii(p.first, p.second-1);
@@ -44,11 +47,14 @@ pii downright(pii p) {
     return down(right(p));
 }
 void nf(pii pos, int i){
+#ifdef DEBUG        
+        printf("set of particles around %i:\n",i);
+#endif
     for (std::set<unsigned int>::iterator it = M[pos.first][pos.second].begin(); it != M[pos.first][pos.second].end(); ++it)
     {
 #ifdef DEBUG        
-        printf("%u %i\n",*it,i);
-#endif        
+        printf("%u\n",*it);
+#endif
         if (i != *it)
             apply_force(&particles[i],&particles[*it]);
     }
@@ -74,11 +80,10 @@ int main( int argc, char **argv )
     
     FILE *fsave = savename ? fopen( savename, "w" ) : NULL;
     particles = (particle_t*) malloc( n * sizeof(particle_t) );
-    int size = ceil(set_size( n ));
-#ifdef DEBUG
+    size = ceil(sqrt( 16 * n ));
+    scale = double(size)/set_size(n);
     printf("integer size: %i\n",size);
-#endif    
-    
+    printf("Scale: %lf\n",scale);
     init_particles( n, particles );
     
     M.assign(size, vector<set<unsigned int> >(size));
@@ -102,10 +107,8 @@ int main( int argc, char **argv )
         {
             particle_t p = particles[i];
             pii pos = pos2grid(p);
-
             if (pos.second != 0) {
                 nf(up(pos),i);
-
                 if (pos.first != 0)
                     nf(upleft(pos),i);
                 if (pos.first != size-1)
@@ -127,8 +130,6 @@ int main( int argc, char **argv )
 
             nf(pos, i);
 
-            pii tmp = up(pos);
-            nf(up(pos),i);
         }
 
 
@@ -141,10 +142,26 @@ int main( int argc, char **argv )
         }
         */
         //
-        //  move particles
+        //  move particles and uptade grid
         //
-        for( int i = 0; i < n; i++ ) 
+        for( int i = 0; i < n; i++ ) {
+            
+            pii oldPos = pos2grid(particles[i]);
+            
             move( particles[i] );
+            
+            pii newPos = pos2grid(particles[i]);
+
+            // if the particle has moved to another cell, delete it from the
+            // old one and put it into the new one
+            if (oldPos != newPos){
+                M[oldPos.first][oldPos.second].erase(i);
+                M[newPos.first][newPos.second].insert(i);
+            }
+
+        }
+
+
         
         //
         //  save if necessary
