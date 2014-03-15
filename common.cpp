@@ -15,7 +15,7 @@ static double size;
 //
 const double density = /*^(-1)*/ 0.01;
 const double mass    = 30;
-const double cutoff  = 0.8;
+const double cutoff  = 1;
 const double min_r   = (cutoff/100);
 const double dt      = 0.0005;
 

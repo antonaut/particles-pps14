@@ -80,7 +80,7 @@ int main( int argc, char **argv )
     
     FILE *fsave = savename ? fopen( savename, "w" ) : NULL;
     particles = (particle_t*) malloc( n * sizeof(particle_t) );
-    size = ceil(sqrt( 32 * n ));
+    size = ceil(sqrt( 20 * n ));
     scale = double(size)/set_size(n);
     printf("integer size: %i\n",size);
     printf("Scale: %lf\n",scale);
