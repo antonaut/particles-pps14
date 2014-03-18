@@ -56,7 +56,7 @@ void nf(pii pos, int i){
         printf("%u\n",*it);
 #endif
   //      if (i != *it)
-            apply_force(&particles[i],&particles[*it]);
+            apply_force(particles[i], particles[*it]);
     }
 }
 
