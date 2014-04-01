@@ -1,3 +1,4 @@
+//TODO: Antalet threads som parameter
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
@@ -5,6 +6,7 @@
 #include <vector>
 #include "common.h"
 #include <set>
+#include <omp.h>
 //#define DEBUG
 using std::vector;
 using std::set;
@@ -102,7 +104,7 @@ int main( int argc, char **argv )
         //
         //  compute forces
         //
-
+#pragma omp parallel for 
         for (int i = 0; i < n; ++i)
         {
             particles[i].ax = particles[i].ay = 0;
@@ -146,6 +148,7 @@ int main( int argc, char **argv )
         //
         //  move particles and update grid
         //
+#pragma omp parallel for
         for( int i = 0; i < n; i++ ) {
             
             pii oldPos = pos2grid(particles[i]);
@@ -156,8 +159,11 @@ int main( int argc, char **argv )
 
             // move patricle between cells
             if (oldPos != newPos){
+#pragma omp critical
+                {
                 M[oldPos.first][oldPos.second].erase(i);
                 M[newPos.first][newPos.second].insert(i);
+                }
             }
 
         }
