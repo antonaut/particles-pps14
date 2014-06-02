@@ -2,6 +2,9 @@
 *.o
 *.out
 linearserial
+linmpi
+linpthread
+linopenmp
 mpi
 openmp
 pthreads
