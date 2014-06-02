@@ -1,4 +1,4 @@
-% Created 2014-06-02 mån 18:24
+% Created 2014-06-02 mån 20:58
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -59,8 +59,28 @@ simulation which ran in time close to $O(n)$.
 \section*{The algorithm}
 \label{sec-2}
 
+The algorithm we have chosen to implement is probably known as binning. We
+divide the field of particles into several 'bins' (like a grid) which we then
+use to filter out which particles we should take into account when calculating
+forces.
+
 \section*{Implementation details}
 \label{sec-3}
+
+\subsection*{Serial}
+\label{sec-3-1}
+
+\subsection*{OpenMP}
+\label{sec-3-2}
+
+\subsection*{Pthreads}
+\label{sec-3-3}
+
+\subsection*{MPI}
+\label{sec-3-4}
+
+\subsection*{Tests}
+\label{sec-3-5}
 
 \section*{Calculations and results}
 \label{sec-4}

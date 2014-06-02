@@ -43,7 +43,22 @@ simulation which ran in time close to $O(n)$.
 
 * The algorithm
 
+The algorithm we have chosen to implement is probably known as binning. We
+divide the field of particles into several 'bins' (like a grid) which we then
+use to filter out which particles we should take into account when calculating
+forces.
+
 * Implementation details
+
+** Serial
+
+** OpenMP
+
+** Pthreads
+
+** MPI
+
+** Tests
 
 * Calculations and results
 

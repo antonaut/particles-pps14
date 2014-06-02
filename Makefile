@@ -1,5 +1,5 @@
 #
-# Computers with Red Hat Enterprise Linux 5 in the computer room 648, KTH Forum, Kista
+# For computer with libs installed running Ubuntu Linux 12.04 or higher...
 #
 CC = g++
 MPCC =  mpic++
@@ -7,7 +7,7 @@ OPENMP = -fopenmp
 LIBS = -lm
 CFLAGS = -g -Wall
 
-TARGETS = serial pthreads openmp mpi linearserial linpthreads linopenmp
+TARGETS = serial pthreads openmp mpi linearserial linpthreads linopenmp linmpi
 
 all:	$(TARGETS)
 
@@ -25,6 +25,8 @@ linopenmp: linopenmp.o common.o
 	$(CC) -o $@ $(LIBS) $(OPENMP) linopenmp.o common.o
 linpthreads: linpthreads.o common.o
 	$(CC) -o $@ $(LIBS) linpthreads.o common.o -pthread
+linmpi: linmpi.o common.o
+	$(MPCC) -o $@ $(LIBS) $(MPILIBS) linmpi.o common.o
 
 
 openmp.o: openmp.cpp common.h
@@ -43,6 +45,8 @@ linopenmp.o: linopenmp.cpp common.h
 	$(CC) -c $(OPENMP) $(CFLAGS) linopenmp.cpp
 linpthreads.o:
 	$(CC) -c $(CLAGS) linpthreads.cpp -pthread
+linmpi.o: linmpi.cpp common.h
+	$(MPCC) -c $(CFLAGS) linmpi.cpp
 
 clean:
 	rm -f *.o $(TARGETS)

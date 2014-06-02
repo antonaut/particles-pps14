@@ -4,6 +4,11 @@
      "sec-1"
      "sec-2"
      "sec-3"
+     "sec-3-1"
+     "sec-3-2"
+     "sec-3-3"
+     "sec-3-4"
+     "sec-3-5"
      "sec-4"
      "sec-5"
      "sec-6")
