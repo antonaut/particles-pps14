@@ -104,7 +104,7 @@ int main( int argc, char **argv )
         //
         //  compute forces
         //
-#pragma omp parallel for 
+#pragma omp parallel for default(none) shared(particles, size, n)
         for (int i = 0; i < n; ++i)
         {
             particles[i].ax = particles[i].ay = 0;
@@ -148,7 +148,7 @@ int main( int argc, char **argv )
         //
         //  move particles and update grid
         //
-#pragma omp parallel for
+#pragma omp parallel for default(none) shared(particles, n, M)
         for( int i = 0; i < n; i++ ) {
             
             pii oldPos = pos2grid(particles[i]);
