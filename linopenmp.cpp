@@ -57,8 +57,8 @@ void nf(pii pos, int i){
 #ifdef DEBUG        
         printf("%u\n",*it);
 #endif
-        if (i != *it)
-            apply_force(&particles[i],&particles[*it]);
+        if (i != (int) *it)
+            apply_force(particles[i], particles[*it]);
     }
 }
 

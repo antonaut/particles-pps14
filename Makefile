@@ -7,7 +7,7 @@ OPENMP = -fopenmp
 LIBS = -lm
 CFLAGS = -g -Wall
 
-TARGETS = serial pthreads openmp mpi linearserial
+TARGETS = serial pthreads openmp mpi linearserial linpthreads linopenmp
 
 all:	$(TARGETS)
 
@@ -23,6 +23,9 @@ linearserial: linearserial.o common.o
 	$(CC) -o $@ $(LIBS) linearserial.o common.o
 linopenmp: linopenmp.o common.o
 	$(CC) -o $@ $(LIBS) $(OPENMP) linopenmp.o common.o
+linpthreads: linpthreads.o common.o
+	$(CC) -o $@ $(LIBS) linpthreads.o common.o -pthread
+
 
 openmp.o: openmp.cpp common.h
 	$(CC) -c $(OPENMP) $(CFLAGS) openmp.cpp
@@ -38,7 +41,8 @@ linearserial.o: linearserial.cpp common.h
 	$(CC) -c $(CFLAGS) linearserial.cpp
 linopenmp.o: linopenmp.cpp common.h
 	$(CC) -c $(OPENMP) $(CFLAGS) linopenmp.cpp
-	
+linpthreads.o:
+	$(CC) -c $(CLAGS) linpthreads.cpp -pthread
 
 clean:
 	rm -f *.o $(TARGETS)
