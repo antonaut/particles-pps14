@@ -1,6 +1,6 @@
 // TODO
 //
-// [X] convert particle init and previous O(n^2) implementation
+// [X] convert particle init and previous O(n) implementation
 //
 // [X] save: implement the save function
 //
@@ -16,6 +16,7 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"runtime"
 	"sync"
 	"time"
 )
@@ -117,8 +118,6 @@ func (p *Particle) String() (s string) {
 
 func InitParticles() {
 
-	sizef = math.Sqrt(density * float64(nParticles))
-
 	rand.Seed(time.Now().UnixNano())
 
 	sx := size
@@ -196,10 +195,9 @@ func main() {
 	flag.StringVar(&fileName, "o", "", "<filename> to specify the output file name")
 	flag.Parse()
 
-	fmt.Printf("n: %d, o:%s\n", nParticles, fileName)
-
 	// Calculate & setup global variables
 	size = int(math.Ceil(math.Sqrt(float64(nParticles))))
+	sizef = math.Sqrt(density * float64(nParticles))
 	scale = float64(size) / math.Sqrt(density*float64(nParticles))
 	particles = make([]Particle, nParticles)
 
@@ -214,6 +212,12 @@ func main() {
 		}
 	}
 
+	nprocs := 4
+	fmt.Printf("nprocs: %d numCPUS: %d\n", nprocs, runtime.NumCPU())
+	runtime.GOMAXPROCS(nprocs)
+
+	fmt.Printf("size: %f\n", sizef)
+
 	// Setup particles and grid
 	InitParticles()
 	InitGrid()
@@ -224,28 +228,40 @@ func main() {
 	// Simulate particles
 	for step := 0; step < NSTEPS; step++ {
 
-		// O(n^2) implementation but still running the move part in parallel
+		// O(n) implementation with some parallelism
 
 		// Add force
 		barrier.Add(nParticles)
 		for i := 0; i < nParticles; i++ {
-			func(i int) {
+			go func(i int) {
 				particles[i].ax = 0
 				particles[i].ay = 0
-				for j := 0; j < nParticles; j++ {
-					particles[i].ApplyForceOf(&particles[j])
+				x, y := particles[i].PositionOnGrid()
+
+				for k := range grid[x][y].set {
+					particles[i].ApplyForceOf(&particles[k])
 				}
+
 				barrier.Done()
 			}(i)
 		}
 		barrier.Wait()
 
-		// Move
 		barrier.Add(nParticles)
 
+		// Move and update grid
 		for i := 0; i < nParticles; i++ {
 			go func(i int) {
+
+				oldX, oldY := particles[i].PositionOnGrid()
+
 				particles[i].Move()
+
+				newX, newY := particles[i].PositionOnGrid()
+
+				delete(grid[oldX][oldY].set, i)
+
+				grid[newX][newY].Add(i)
 
 				barrier.Done()
 			}(i)
@@ -260,5 +276,5 @@ func main() {
 	}
 
 	diffTime := time.Since(start)
-	fmt.Printf("Time of simulation: %fs\n", diffTime.Seconds())
+	fmt.Printf("n = %d, simulation time = %f seconds\n", nParticles, diffTime.Seconds())
 }
