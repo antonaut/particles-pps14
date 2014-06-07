@@ -1,13 +1,15 @@
 // TODO
 //
 // [X] convert particle init and previous O(n) implementation
-//
+// [X] - " -                              O(n^2)  - " -
 // [X] save: implement the save function
 //
-// [ ] algorithm:
+// [ ] use distributed memory and channels instead:
 // make a goroutine for every square on the grid
 // make sure particles can be sent between squares
-// compute forces by asking for your neighbour squares particles
+// every turn, send your particles to your neighbours
+// 		apply forces of incoming particles and move own particles.
+// 		distribute new particles to neighbours if necessary
 package main
 
 import (
@@ -45,6 +47,7 @@ const (
 	SAVEFREQ = 10
 )
 
+// Represents a set of integers
 type IntSet struct {
 	set map[int]struct{}
 }
@@ -59,10 +62,12 @@ func (set *IntSet) Add(i int) bool {
 	return !found //False if it existed already
 }
 
+// Represents a particle to be simulated
 type Particle struct {
 	x, y, dx, dy, ax, ay float64
 }
 
+// Returns the particles position on the large grid
 func (p *Particle) PositionOnGrid() (int, int) {
 	return (int)(p.x * scale), (int)(p.y * scale)
 }
@@ -238,6 +243,7 @@ func main() {
 				particles[i].ay = 0
 				x, y := particles[i].PositionOnGrid()
 
+				// Simplify and only add force of 'own particles in the grid'
 				for k := range grid[x][y].set {
 					particles[i].ApplyForceOf(&particles[k])
 				}
@@ -251,7 +257,7 @@ func main() {
 
 		// Move and update grid
 		for i := 0; i < nParticles; i++ {
-			go func(i int) {
+			func(i int) {
 
 				oldX, oldY := particles[i].PositionOnGrid()
 
