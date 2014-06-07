@@ -1,6 +1,6 @@
 // TODO
 //
-// [/] convert particle init and previous linear implementation
+// [X] convert particle init and previous O(n^2) implementation
 //
 // [X] save: implement the save function
 //
@@ -39,7 +39,7 @@ const (
 	mass     = 30
 	cutoff   = 1
 	min_r    = 0.01
-	dt       = 0.00005
+	dt       = 0.0005
 	NSTEPS   = 1000
 	SAVEFREQ = 10
 )
@@ -75,7 +75,7 @@ func (p *Particle) ApplyForceOf(p2 *Particle) {
 		return
 	}
 
-	r2 = math.Max(r2, min_r)
+	r2 = math.Max(r2, min_r*min_r)
 	r := math.Sqrt(r2)
 	coef := (1 - cutoff/r) / r2 / mass
 	p.ax += coef * dx
@@ -192,7 +192,7 @@ func main() {
 	var err error
 
 	// Setup flags
-	flag.IntVar(&nParticles, "n", 1005, "<int> to set the number of particles")
+	flag.IntVar(&nParticles, "n", 1000, "<int> to set the number of particles")
 	flag.StringVar(&fileName, "o", "", "<filename> to specify the output file name")
 	flag.Parse()
 
@@ -224,16 +224,33 @@ func main() {
 	// Simulate particles
 	for step := 0; step < NSTEPS; step++ {
 
+		// O(n^2) implementation but still running the move part in parallel
+
+		// Add force
+		barrier.Add(nParticles)
+		for i := 0; i < nParticles; i++ {
+			func(i int) {
+				particles[i].ax = 0
+				particles[i].ay = 0
+				for j := 0; j < nParticles; j++ {
+					particles[i].ApplyForceOf(&particles[j])
+				}
+				barrier.Done()
+			}(i)
+		}
+		barrier.Wait()
+
+		// Move
 		barrier.Add(nParticles)
 
 		for i := 0; i < nParticles; i++ {
 			go func(i int) {
-				particles[i].ax = -0.1
-				particles[i].ay = -0.1
 				particles[i].Move()
+
 				barrier.Done()
 			}(i)
 		}
+
 		barrier.Wait()
 
 		if step%SAVEFREQ == 0 {
