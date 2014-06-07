@@ -1,7 +1,10 @@
 // TODO
-// - save: implement the save function
 //
-// - algorithm:
+// [/] convert particle init and previous linear implementation
+//
+// [X] save: implement the save function
+//
+// [ ] algorithm:
 // make a goroutine for every square on the grid
 // make sure particles can be sent between squares
 // compute forces by asking for your neighbour squares particles
@@ -25,16 +28,20 @@ var (
 	scale      float64
 	particles  []Particle
 	grid       [][]IntSet
-	wg         sync.WaitGroup
+	barrier    sync.WaitGroup
 	firstSave  bool
+	shouldSave bool
+	file       *os.File
 )
 
 const (
-	density = 0.01
-	mass    = 30
-	cutoff  = 1
-	min_r   = 0.01
-	dt      = 0.00005
+	density  = 0.01
+	mass     = 30
+	cutoff   = 1
+	min_r    = 0.01
+	dt       = 0.00005
+	NSTEPS   = 1000
+	SAVEFREQ = 10
 )
 
 type IntSet struct {
@@ -87,7 +94,7 @@ func (p *Particle) Move() {
 		} else {
 			p.x = 2*sizef - p.x
 		}
-		p.dx = -p.vy
+		p.dx = -p.dx
 	}
 
 	for p.y < 0 || p.y > sizef {
@@ -98,6 +105,10 @@ func (p *Particle) Move() {
 		}
 		p.dy = -p.dy
 	}
+}
+
+func (p *Particle) SaveString() string {
+	return fmt.Sprintf("%g %g\n", p.x, p.y)
 }
 
 func (p *Particle) String() (s string) {
@@ -125,8 +136,8 @@ func InitParticles() {
 		k := shuffle[j]
 		shuffle[j] = shuffle[nParticles-i-1]
 
-		particles[i].x = s * float64(1+(k%sx)) / float64(1+sx)
-		particles[i].y = s * float64(1+(k/sx)) / float64(1+sy)
+		particles[i].x = sizef * float64(1+(k%sx)) / float64(1+sx)
+		particles[i].y = sizef * float64(1+(k/sx)) / float64(1+sy)
 
 		particles[i].dx = rand.Float64()*2 - 1
 		particles[i].dy = rand.Float64()*2 - 1
@@ -148,37 +159,89 @@ func InitGrid() {
 	}
 }
 
-func Simulate(id int) {
-	defer wg.Done()
-	fmt.Printf("Particle[%d]\n", id)
+func SimulateSquare(id int, particleCounter []chan int, particleStream []chan Particle) {
+	fmt.Printf("Particle[%d] : %v\n", id, particles[id])
 }
 
 func save() {
+	if !shouldSave {
+		return
+	}
 
+	if firstSave {
+		file.WriteString(fmt.Sprintf("%d %g\n", nParticles, sizef))
+		firstSave = false
+	}
+
+	for i := 0; i < nParticles; i++ {
+		_, err := file.WriteString(particles[i].SaveString())
+		if err != nil {
+			panic(err)
+		}
+
+	}
+
+	err := file.Sync()
+	if err != nil {
+		panic(err)
+	}
 }
 
 func main() {
 
+	var err error
+
 	// Setup flags
-	flag.IntVar(&nParticles, "n", 1000, "<int> to set the number of particles")
+	flag.IntVar(&nParticles, "n", 1005, "<int> to set the number of particles")
 	flag.StringVar(&fileName, "o", "", "<filename> to specify the output file name")
 	flag.Parse()
 
-	fmt.Printf("n: %d, o:%s", nParticles, fileName)
+	fmt.Printf("n: %d, o:%s\n", nParticles, fileName)
 
+	// Calculate & setup global variables
 	size = int(math.Ceil(math.Sqrt(float64(nParticles))))
 	scale = float64(size) / math.Sqrt(density*float64(nParticles))
 	particles = make([]Particle, nParticles)
 
 	firstSave = true
+	shouldSave = fileName != ""
 
+	if shouldSave {
+		file, err = os.Create(fileName)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Couldn't open file : %s\n", err)
+			return
+		}
+	}
+
+	// Setup particles and grid
 	InitParticles()
 	InitGrid()
 
-	for i := 0; i < nParticles; i++ {
-		wg.Add(1)
-		go Simulate(i)
+	// Start timer
+	start := time.Now()
+
+	// Simulate particles
+	for step := 0; step < NSTEPS; step++ {
+
+		barrier.Add(nParticles)
+
+		for i := 0; i < nParticles; i++ {
+			go func(i int) {
+				particles[i].ax = -0.1
+				particles[i].ay = -0.1
+				particles[i].Move()
+				barrier.Done()
+			}(i)
+		}
+		barrier.Wait()
+
+		if step%SAVEFREQ == 0 {
+			// Save if neccessary
+			save()
+		}
 	}
 
-	wg.Wait() // Don't let the main goroutine die on me.
+	diffTime := time.Since(start)
+	fmt.Printf("Time of simulation: %fs\n", diffTime.Seconds())
 }
