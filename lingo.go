@@ -244,6 +244,7 @@ func main() {
 				x, y := particles[i].PositionOnGrid()
 
 				// Simplify and only add force of 'own particles in the grid'
+				// Expected time: O(k) ~ O(1) since we expect k << n
 				for k := range grid[x][y].set {
 					particles[i].ApplyForceOf(&particles[k])
 				}
