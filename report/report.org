@@ -1,6 +1,6 @@
-#+TITLE: Parallelize particle simulation
+#+TITLE: Parallelized particle simulation
 #+DESCRIPTION: A project in the course ID1217 at KTH
-#+AUTHOR: Anton Erholt & Christopher MÃ¥rtensson \\ <aerholt@kth>
+#+AUTHOR: Anton Erholt & Christopher Mårtensson \\ <aerholt@kth.se> <cmarte@kth.se>
 #+OPTIONS:   H:3 num:nil toc:nil \n:nil @:t ::t |:t ^:t -:t f:t *:t <:t
 #+OPTIONS:   TeX:t LaTeX:t skip:nil d:nil todo:t pri:nil tags:not-in-toc
 #+LaTeX_CLASS: article
@@ -30,38 +30,123 @@
 \newpage
 \begin{abstract}
 
-This report serves to describe a programming project in the course ID1217,
-Concurrent programming. The project was to implement an algorithm for particle
-simulation which ran in time close to $O(n)$.
+This report serves to describe a programming project in the course
+ID1217, Concurrent programming. The project was to implement an
+algorithm for particle simulation which ran in time close to $O(n)$.
 
 \end{abstract}
 \newpage
 #+end_latex
 
-
 * Introduction
+
+This programming project is about finding an improved algorithm for
+solving a particle simulation problem and implementing
+it. Furthermore, the project consists of improving said implementation
+by parallelizing it to several processors.
+
+The particle simulation is made by a per-particle basis, applying the
+force of its neighboring particles and recalculating the particle
+position and velocity.
 
 * The algorithm
 
-The algorithm we have chosen to implement is probably known as binning. We
-divide the field of particles into several 'bins' (like a grid) which we then
-use to filter out which particles we should take into account when calculating
-forces.
+The algorithm we have chosen to implement is probably best known as
+binning. We divide the field of particles into several 'bins' (like a
+grid) which we then use to filter out which particles we should take
+into account when calculating forces. Using a shared memory layout
+with this type of design requires little to no changes for an actual
+implementation. With a distributed memory layout, the design requires
+a few additions.
+
+The algorithm described in pseudo-code is:
+
+#+BEGIN_SRC python
+  P = set(Particle)
+  N = P.size()
+
+  def simulate_step():
+      for particle in P:
+          # Parallelize here
+          neighbors = find_neighbors(particle)
+          for n in neighbors:
+              particle.applyForceOf(n)
+          # Synchronize here
+      return P
+#+END_SRC
+
+Where the size of neighbors is significantly smaller than N and
+therefore makes the binning algorithm's running time $\in O(N)$.
+
+$$ neighbors.size() << N $$
+
+The calculation part which we parallelize is obviously the force calculation for
+every particle. This project limits itself not to discuss whether or
+not one would gain anything from also parallelizing over several time
+steps.
 
 * Implementation details
 
-** Serial
+** Shared memory layout
 
-** OpenMP
+*** Serial
+The serial solution uses no type of parallelization and runs the
+binning algorithm as expected, in $O(n)$ time (where $n$ is the number
+of particles).
 
-** Pthreads
+*** OpenMP
+The OpenMP version implements a parallel version of the binning
+algorithm. It uses the ~#pragma omp parallel for~ directive for
+parallelization and synchronization. The directive ~#pragma omp
+critical~ is used to ensure the critical region of the algorithm is
+executed atomically.
 
-** MPI
+*** Pthreads
+The pthreads implementation uses more low level synchronization
+primitives, namely a barrier for synchronization and a mutex for
+locking. The particle array is split into as many chunks as we have
+threads, and each thread gets to work on its own chunk.
 
-** Tests
+** Distributed memory layout
+
+Using a distributed memory layout forces an addition in the algorithm
+design. We partition the grid of particles into rows and make each row
+an object of parallelization. Every row 'talks' to its neighbours on
+top and below. This allows the row to send and receive the particles
+closest to the edges for a more accurate description of the forces.
+
+
+*** MPI
+We estimate the contention of our implementation to be quite high, but
+still being able to beat the non-linear implementation given.
 
 * Calculations and results
 
+|          |   T | p=1 | p=2 | p=4 |
+|----------+-----+-----+-----+-----|
+| Serial   | 1.0 | 1.0 | 1.0 | 1.0 |
+| OpenMP   |     |     |     |     |
+| Pthreads |     |     |     |     |
+| MPI      |     |     |     |     |
+
 * Discussion and thoughts
+
+*TODO*
+
+
+ Speedup plots that show how closely your parallel codes approach the
+ idealized p-times speedup and a discussion on whether it is possible
+ to do better.
+
+ Where does the time go? Consider breaking down the runtime into
+ computation time, synchronization time and/or communication time. How
+ do they scale with p?
+
+ A discussion on using pthreads, OpenMP and MPI.
+
+ OpenMP = YES, GOD YES!
+ pthreads = Meh,
+ MPI = ARE YOU JOKING!?!?EIFJIDSOAJFaz
+
 
 * Plots and figures
