@@ -58,6 +58,7 @@ pii pos2grid(const particle_t& p) {
 			);
 }
 pii globalgrid2localgrid(const pii& p) {
+//	assert(p.first >= cell_bounds.first);
 	return pii(
 			p.first - cell_bounds.first,
 			p.second
@@ -107,6 +108,7 @@ void nf(pii pos, unsigned int p, particle_t* particles){
 			apply_force(particles[p], particles[p2]);
 	}
 }
+#define sanity_check() for (const auto& row : cells) for (const auto& set : row) for (const auto& p : set) assert(pos2grid(particles[p]).first >= cell_bounds.first && pos2grid(particles[p]).first < cell_bounds.second);
 
 MPI_Datatype make_particle_with_index_datatype() {
 	// six floats and a particle index
@@ -207,25 +209,27 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "pid: %i n: %u begin: %li end-1: %li begin.y: %lf end-1.y: %lf grid(begin): %u grid(end-1): %u\n", rank, n, begin-particles, (end-1)-particles, begin->y, (end-1)->y, pos2grid(begin->y), pos2grid((end-1)->y));
 	for (particle_t* it = begin; it != end; ++it) {
 		pii p = globalgrid2localgrid(pos2grid(*it));
-		if (p.first >= cells.size()) fprintf(stderr, "Uh Oh!\n");
+		if (p.first >= num_cells_y || p.second >= num_cells_x) fprintf(stderr, "Uh Oh!\n");
 		cells[p.first][p.second].insert(it-particles);
 	}
-	
+	sanity_check();
 	//
     //  simulate a number of time steps
     //
     double simulation_time = read_timer( );
 //    for( int step = 0; step < NSTEPS; step++ ) 
-	for( int step = 0; step < 1; step++ ) 
+	for( int step = 0; step < 100; step++ ) 
 	{
+		
+		sanity_check();
 		//
 		// Get data from neighbors
 		//
 
 		// asynchronously send particles at edge to neighbors, then receive the neighbors data
+		std::vector<std::vector<particle_t>> top(num_cells_x), bottom(num_cells_x);
 		{
 		std::vector<particle_t> to_send_up, to_send_down;
-		std::vector<std::vector<particle_t>> top(num_cells_x), bottom(num_cells_x);
 		MPI_Request top_req, bot_req;
 		if (rank > 0) {
 			for (const auto& set : cells.front())
@@ -280,10 +284,11 @@ int main(int argc, char *argv[])
 		if (rank < num_proc-1)
 			MPI_Wait(&bot_req, &status);
 		}
+		 
+		sanity_check();
 		//
         //  compute forces
         //
-		
 		// first for cells not on the edge
 		{
 			const unsigned int begin_y = rank == 0 ? 0 : 1;
@@ -347,7 +352,12 @@ int main(int argc, char *argv[])
 				}
 			}
 		}
-			
+		
+//		sanity_check();
+		for (const auto& row : cells) 
+			for (const auto& set : row) 
+				for (const auto& p : set) 
+					assert(pos2grid(particles[p]).first >= cell_bounds.first && pos2grid(particles[p]).first < cell_bounds.second);
 		//
         //  move particles and update grid
         //
@@ -355,42 +365,78 @@ int main(int argc, char *argv[])
 			particle_t p;
 			unsigned int i;
 		};
-		std::vector<Particle_w_index> to_send_down, to_send_up; //FIXME: Send to the correct process instead of just 'up' and 'down'
+		// keep track of the particles that change cells, as to not mutate the cells during iteration
+		std::vector<std::pair<unsigned int, pii>> to_change;
 		for (const auto& row : cells) {
-			for (unsigned int p : row) {
-				
-				pii oldPos = pos2grid(particles[p]);
-				
-				move (particles[p]);
-				
-				pii newPos = pos2grid(particles[p]);
-				
-				if (oldPos != newPos) {
-					if (newPos.first > cell_bounds.second)
-						to_send_down.push_back({particles[p], p});
-					else if (newPos.first < cell_bounds.first)
-						to_send_up.push_back({particles[p],p});
-					else {
-						cells[oldPos.first][oldPos.second].erase(p);
-						cells[newPos.first][newPos.second].insert(p);
-					}
+			for (const auto& set : row) {
+				for (const auto& p : set) {
+					pii oldPos = pos2grid(particles[p]);
+					move (particles[p]);
+					pii newPos = pos2grid(particles[p]);
+					if (oldPos != newPos)
+						to_change.push_back({p, oldPos});
 				}
-						
+			}
+		}
+		std::vector<Particle_w_index> to_send_down, to_send_up; //FIXME: Send to the correct process instead of just 'up' and 'down'
+		for (auto p : to_change) {
+			pii oldPos = globalgrid2localgrid(p.second);
+			pii newPos = pos2grid(particles[p.first]);
+			assert(oldPos.second >= 0 && oldPos.second < num_cells_x);
+			assert(oldPos.first >= 0 && oldPos.first < num_cells_y);
+			fprintf(stderr, "%u %u -> %u %u\n", p.second.first, p.second.second, oldPos.first, oldPos.second);
+			
+			cells[oldPos.first][oldPos.second].erase(p.first);
+			if (newPos.first >= cell_bounds.second) {
+				to_send_down.push_back({particles[p.first], p.first});
+			}
+			else if (newPos.first < cell_bounds.first) {
+				to_send_up.push_back({particles[p.first],p.first});
+			}
+			else {
+				newPos = globalgrid2localgrid(newPos);
+				assert(newPos.first < num_cells_y && newPos.first >= 0);
+				cells[newPos.first][newPos.second].insert(p.first);
 			}
 		}
 		
-		MPI_Request request_top, request_bot;
-		if (rank > 0)
-			MPI_Isend(to_send_up.data(), to_send_up.size(), PARTICLE_WITH_INDEX, rank-1, LENDING_PARTICLES, MPI_COMM_WORLD, request_top);
-		if (rank < num_proc-1)
-			MPI_Isend(to_send_down.data(), to_send_down.size(), PARTICLE_WITH_INDEX, rank+1, LENDING_PARTICLES, MPI_COMM_WORLD, &request_bot);
+		sanity_check();
 		
-		// TODO: Receive from neighbors
+		fprintf(stderr, "pid %i had %lu particles going North\n", rank, to_send_up.size());
+		fprintf(stderr, "pid %i had %lu particles going South\n", rank, to_send_down.size());
 		
-		if (rank > 0 )
-			MPI_Wait(&request_top);
-		if (rank < num_proc-1)
-			MPI_Wait(&request_bot);
+//		MPI_Request request_top, request_bot;
+//		if (rank > 0)
+//			MPI_Isend(to_send_up.data(), to_send_up.size(), PARTICLE_WITH_INDEX, rank-1, LENDING_PARTICLES, MPI_COMM_WORLD, &request_top);
+//		if (rank < num_proc-1)
+//			MPI_Isend(to_send_down.data(), to_send_down.size(), PARTICLE_WITH_INDEX, rank+1, LENDING_PARTICLES, MPI_COMM_WORLD, &request_bot);
+//		
+//		// FIXME: Receive from all neighbors
+//		unsigned int num_to_receive = rank==0 || rank==num_proc-1 ? 1 : 2;
+//		for (unsigned int i = 0; i < num_to_receive; ++i) {
+//			MPI_Status status;
+//			int count, tag;
+//			MPI_Probe(MPI_ANY_SOURCE, LENDING_PARTICLES, MPI_COMM_WORLD, &status);
+//			MPI_Get_count(&status, PARTICLE_WITH_INDEX, &count);
+//			std::vector<Particle_w_index> recv_buf(count);
+//			MPI_Recv(recv_buf.data(), recv_buf.size(), PARTICLE_WITH_INDEX, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
+//			fprintf(stderr, "pid %i received %lu particles that crossed the border\n", rank, count );
+//			// add received particles
+//			for (const auto& p : recv_buf) {
+//				pii pos = pos2grid(p.p);
+//				assert(pos2grid(p.p).first < cell_bounds.second && pos2grid(p.p).first >= cell_bounds.first);
+//				// update particle list
+//				particles[p.i] = p.p;
+//				// put in grid
+//				cells[pos.first][pos.second].insert(p.i);
+//			}
+//		}
+//		
+//		MPI_Status status;
+//		if (rank > 0 )
+//			MPI_Wait(&request_top, &status);
+//		if (rank < num_proc-1)
+//			MPI_Wait(&request_bot, &status);
 
 
 	}
