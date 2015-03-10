@@ -5,13 +5,11 @@ TODO
 
 http://www.eecs.berkeley.edu/~carazvan/2013bootcamp/help/Theory.pdf
 
-1 - Distribuera partiklar
-2 - För alla egna partiklar: Fråga roten om alla partiklar som är runt partikeln
-3 - Apply force
-4 - move
-5 - Gather
-6 - Uppdatera celler ( i rot )
-7 - repetera från 2
+1 - Låt områded bestå av celler för att linearisera problemet
+2 - Distribuera området i num_proc delar. Varje process har endast celler som ligger i sitt område.
+3 - Apply force. Om grann-cellerna inte ägs av processen, be om dom från från de andra processerna via msg-passing
+4 - move. Om en partikel åker in i en annan process område, skicka meddelande till den
+5 - Tillbaks till 3
 
 */
 
@@ -23,70 +21,54 @@ http://www.eecs.berkeley.edu/~carazvan/2013bootcamp/help/Theory.pdf
 #include "common.h"
 #include <vector>
 #include <set>
+#include <algorithm>
+#include <mpi/mpi.h>
+
 using std::vector;
 using std::set;
-typedef std::pair<int,int> pii;
+typedef std::pair<unsigned int, unsigned int> pii; // first: y second: x
 
-vector<vector<set<unsigned int> > > M;
+// Grid of cells that contain the indices of particles for this process to process
+// access: cells[y][x]
+vector<vector<set<unsigned int> > > cells; 
+// upper and lower bounds of the y-values of the area that the process is handling particles for
+std::pair<unsigned int, unsigned int> cell_bounds; 
+static double scale; // scale from grid position to particle position
 
-static int size; 
-static double scale;
-
-
-pii pos2grid(particle_t p) {
-    return pii((int) (p.x*scale), (int) (p.y*scale));
+pii pos2grid(const particle_t& p) {
+    return pii(
+			static_cast<unsigned int>(p.y*scale),
+			static_cast<unsigned int>(p.x*scale)
+			);
 }
-pii up(pii p){
-    return pii(p.first, p.second-1);
+pii globalgrid2localgrid(const pii& p) {
+	return pii(
+			p.first - cell_bounds.first,
+			p.second
+			);
 }
-pii down(pii p){
-    return pii(p.first, p.second+1);
-}
-pii left(pii p){
-    return pii(p.first-1, p.second);
-}
-pii right(pii p){
-    return pii(p.first+1, p.second);
-}
-
-pii upleft(pii p) {
-    return up(left(p));
+unsigned int pos2grid(double pos) {
+	return static_cast<unsigned int>(pos*scale);
 }
 
-pii upright(pii p) {
-    return up(right(p));
+MPI_Datatype make_particle_datatype() {
+	// six floats and a particle index
+	int blockcounts[2] = {6,1};
+	MPI_Datatype old_types[2] = {MPI_DOUBLE, MPI_UNSIGNED};
+	MPI_Aint offsets[2], extent;
+	MPI_Type_extent(MPI_DOUBLE, &extent);
+	offsets[0] = 0;
+	offsets[1] = 6 * extent;
+	
+	MPI_Datatype new_type;
+	MPI_Type_struct(2, blockcounts, offsets, old_types, &new_type);
+	MPI_Type_commit(&new_type);
+	return new_type;
 }
 
-pii downleft(pii p) {
-    return down(left(p));
-}
-
-pii downright(pii p) {
-    return down(right(p));
-}
-
-void nf(particle_t *particles, pii pos, int i) {
-#ifdef DEBUG        
-        printf("set of particles around %i:\n",i);
-#endif
-    for (std::set<unsigned int>::iterator it = M[pos.first][pos.second].begin(); it != M[pos.first][pos.second].end(); ++it)
-    {
-#ifdef DEBUG        
-        printf("%u\n",*it);
-#endif
-
-        if (i != (int) *it)
-            apply_force(particles[i], particles[*it]);
-    }
-}
-
-
-/**
- * main - where the fun begins!
- */
-int main( int argc, char **argv )
-{    
-    //
+int main(int argc, char *argv[])
+{
+	//
     //  process command line parameters
     //
     if( find_option( argc, argv, "-h" ) >= 0 )
@@ -100,141 +82,76 @@ int main( int argc, char **argv )
     
     int n = read_int( argc, argv, "-n", 1000 );
     char *savename = read_string( argc, argv, "-o", NULL );
-    
-
 
     //
     //  set up MPI
     //
-    int n_proc, rank;
+    int num_proc, rank;
     MPI_Init( &argc, &argv );
-    MPI_Comm_size( MPI_COMM_WORLD, &n_proc );
+    MPI_Comm_size( MPI_COMM_WORLD, &num_proc );
     MPI_Comm_rank( MPI_COMM_WORLD, &rank );
-    
+
     //
     //  allocate generic resources
     //
-    FILE *fsave = savename && rank == 0 ? fopen( savename, "w" ) : NULL;
-    particle_t *particles = (particle_t*) malloc( n * sizeof(particle_t) );
+    FILE *fsave = savename && rank == 0 ? fopen( savename, "w" ) : NULL; // Savefile
+    particle_t *particles = (particle_t*) malloc( n * sizeof(particle_t) ); // Array containing all particles
     
+    // Define a PARTICLE datatype
     MPI_Datatype PARTICLE;
     MPI_Type_contiguous( 6, MPI_DOUBLE, &PARTICLE );
     MPI_Type_commit( &PARTICLE );
 
-    size = ceil(sqrt( 20 * n ));
-    scale = double(size)/set_size(n);
-
-    if (0 == rank) { // Setup this for root
-        printf("integer size: %i\n", size);
-        printf("Scale: %lf\n", scale);
-        M.assign(size, vector<set<unsigned int> >(size));
-
-        for (int i = 0; i < n; ++i ){
-            pii p = pos2grid(particles[i]);
-            M[p.first][p.second].insert(i);
-        }
-    }
-
-    
-    //
-    //  set up the data partitioning across processors
-    //
-    int particle_per_proc = (n + n_proc - 1) / n_proc;
-    int *partition_offsets = (int*) malloc( (n_proc+1) * sizeof(int) );
-    for( int i = 0; i < n_proc+1; i++ )
-        partition_offsets[i] = min( i * particle_per_proc, n );
-    
-    int *partition_sizes = (int*) malloc( n_proc * sizeof(int) );
-    for( int i = 0; i < n_proc; i++ )
-        partition_sizes[i] = partition_offsets[i+1] - partition_offsets[i];
-    
-    //
-    //  allocate storage for local partition and neighbour buffer 
-    //  (assumed that nlocal >> number of neighbours in our grid so the buffer doesn't overflow)
-    //
-    int nlocal = partition_sizes[rank];
-    particle_t *local = (particle_t*) malloc( nlocal * sizeof(particle_t) );
-    particle_t *neighbours = (particle_t*) malloc( nlocal * sizeof(particle_t));
-    
-    //
-    //  initialize and distribute the particles (that's fine to leave it unoptimized)
-    //
-    set_size( n );
-    if( rank == 0 )
-        init_particles( n, particles );
-    MPI_Scatterv( particles, partition_sizes, partition_offsets, PARTICLE, local, nlocal, PARTICLE, 0, MPI_COMM_WORLD );
-    
-
-    //
-    //  simulate a number of time steps
-    //
-    double simulation_time = read_timer( );
-    for( int step = 0; step < NSTEPS; step++ )
+	// Split the area into num_proc subareas. We go the easier route here and split on the vertical
     {
-
-
-        /*
-        if (rank == 0) {
-            for (int i = 0; i < size;++i) {
-                particle_t tmp;
-                MPI_Status status;
-                MPI_Recv(&tmp, 1, PARTICLE, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-
-            }
-        } else {
-            for(int i=0;i<nlocal;++i) {
-                particle_t p = local[i];
-                int n_neighbours;
-                MPI_Send(&p, 1, PARTICLE, 0, 0, MPI_COMM_WORLD);
-                MPI_Recv(&neighbours, )
-
-            }
-        }
-
-        */
-
-        
-        MPI_Allgatherv( local, nlocal, PARTICLE, particles, partition_sizes, partition_offsets, PARTICLE, MPI_COMM_WORLD );
-        
-        //
-        //  save current step if necessary (slightly different semantics than in other codes)
-        //
-        if( fsave && (step%SAVEFREQ) == 0 )
-            save( fsave, n, particles );
-        
-
-        for( int i = 0; i < nlocal; i++ )
-        {
-            local[i].ax = local[i].ay = 0;
-            for (int j = 0; j < nlocal; j++ )
-                if (j != i)
-                    apply_force( local[i], local[j] );
-        }
-        
-        //
-        //  move particles
-        //
-        for( int i = 0; i < nlocal; i++ )
-            move( local[i] );
-
-        
+    	unsigned int cells_side = ceil(sqrt( 20 * n )); // square root of the total number of cells, a number that should be much larger than the number of particles
+    	cells_side = cells_side - (cells_side%num_proc); // make divisible by num_proc
+    	unsigned int per_proc = cells_side / num_proc;
+    	cell_bounds.first = per_proc*rank;
+		cell_bounds.second = cell_bounds.first + per_proc;
+    	cells.assign(per_proc, std::vector<std::set<unsigned int> >(cells_side) );
+    	scale = double(cells_side)/set_size(n); // Scale between cell index and particle position
     }
-    simulation_time = read_timer( ) - simulation_time;
-    
-    if( rank == 0 )
-        printf( "n = %d, n_procs = %d, simulation time = %g s\n", n, n_proc, simulation_time );
-    
-    //
-    //  release resources
-    //
-    free( partition_offsets );
-    free( partition_sizes );
-    free( local );
-    free( particles );
-    if( fsave )
-        fclose( fsave );
-    
-    MPI_Finalize( );
-    
-    return 0;
+
+	//
+	// Initialize particles in root
+	//
+    if (0 == rank) { 
+    	// Let root print some info
+        printf("Number of cells per process: %i * %i\n", cells.size(), cells.size());
+        printf("Scale: %lf\n", scale);
+        printf("Lower cell bound: %i Upper cell bound: %i\n", cell_bounds.first, cell_bounds.second);
+
+        // Initialize particles
+        init_particles( n, particles );
+        
+        // Distribute particles to their respective owning process
+        // sort by y value
+        std::sort(particles, particles + n, [](const particle_t& a, const particle_t& b) {
+        	return a.y < b.y;
+        });
+    }
+	
+	printf("pid: %i Lower cell bound: %i Upper cell bound: %i\n", rank, cell_bounds.first, cell_bounds.second);
+	
+	// Broadcast the particles
+	MPI_Bcast(particles, n, PARTICLE, 0, MPI_COMM_WORLD);
+	
+	// Place the relevant particles in the observed cells
+	auto comp = [](const particle_t& p, double val) {
+		return pos2grid(p.y) < val;
+	};
+	particle_t* begin = std::lower_bound(particles, particles+n, cell_bounds.first, comp);
+	particle_t* end = std::lower_bound(particles, particles+n, cell_bounds.second, comp);
+	fprintf(stderr, "pid: %i n: %u begin: %i end-1: %i begin.y: %lf end-1.y: %lf grid(begin): %u grid(end-1): %u\n", rank, n, begin-particles, (end-1)-particles, begin->y, (end-1)->y, pos2grid(begin->y), pos2grid((end-1)->y));
+	for (particle_t* it = begin; it != end; ++it) {
+		pii p = globalgrid2localgrid(pos2grid(*it));
+		if (p.first >= cells.size()) fprintf(stderr, "Uh Oh!\n");
+		cells[p.first][p.second].insert(it-particles);
+	}
+	
+	// TODO: At the start of each iteration, get particles on at the top and bottom bounds from other processes
+	// Then process own particles as usual. Then if a particle has left grid, send it to the corresponding process
+	MPI_Finalize();
+	return 0;
 }
