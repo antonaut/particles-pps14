@@ -34,7 +34,6 @@ http://www.eecs.berkeley.edu/~carazvan/2013bootcamp/help/Theory.pdf
 #include <vector>
 #include <set>
 #include <algorithm>
-#include <mpi/mpi.h>
 
 using std::vector;
 using std::set;
@@ -238,7 +237,7 @@ int main(int argc, char *argv[])
 		pii p = globalgrid2localgrid(pos2grid(*it));
 		cells[p.first][p.second].insert(it-particles);
 	}
-	sanity_check();
+	// sanity_check();
 	//
     //  simulate a number of time steps
     //
@@ -247,7 +246,7 @@ int main(int argc, char *argv[])
 //	for( int step = 0; step < 1; step++ ) 
 	{
 		
-		sanity_check();
+		// sanity_check();
 		//
 		// Get data from neighbors
 		//
@@ -299,7 +298,7 @@ int main(int argc, char *argv[])
 			MPI_Wait(&bot_req, &status);
 		}
 		 
-		sanity_check();
+		// sanity_check();
 		//
         //  compute forces
         //
@@ -371,10 +370,7 @@ int main(int argc, char *argv[])
 		}
 		
 //		sanity_check();
-		for (const auto& row : cells) 
-			for (const auto& set : row) 
-				for (const auto& p : set) 
-					assert(pos2grid(particles[p]).first >= cell_bounds.first && pos2grid(particles[p]).first < cell_bounds.second);
+
 		//
         //  move particles and update grid
         //
@@ -412,7 +408,7 @@ int main(int argc, char *argv[])
 			}
 		}
 		
-		sanity_check();
+		// sanity_check();
 		
 //		if (to_send_up.size()) fprintf(stderr, "pid %i had %lu particles going North\n", rank, to_send_up.size());
 //		if (to_send_down.size()) fprintf(stderr, "pid %i had %lu particles going South\n", rank, to_send_down.size());
