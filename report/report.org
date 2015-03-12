@@ -54,7 +54,7 @@ position and velocity.
 
 The algorithm we have chosen to implement is probably best known as
 binning. We divide the field of particles into several 'bins' (like a
-grid) which we then use to filter out which particles we should take
+grid) which we then use to filter out which particles we need to take
 into account when calculating forces. Using a shared memory layout
 with this type of design requires little to no changes for an actual
 implementation. With a distributed memory layout, the design requires
@@ -72,8 +72,10 @@ The algorithm described in pseudo-code is:
           neighbors = find_neighbors(particle)
           for n in neighbors:
               particle.applyForceOf(n)
-          # Synchronize here
-      return P
+      # Synchronize here
+      for particle in P:
+          particle.move()
+      # Synchronize here
 #+END_SRC
 
 Where the size of neighbors is significantly smaller than N and
@@ -81,9 +83,9 @@ therefore makes the binning algorithm's running time $\in O(N)$.
 
 $$ neighbors.size() << N $$
 
-The calculation part which we parallelize is obviously the force calculation for
+The calculation part which we parallelize is obviously the force calculation and the move calculation for
 every particle. This project limits itself not to discuss whether or
-not one would gain anything from also parallelizing over several time
+not one would gain anything from also parallelizing over time
 steps.
 
 * Implementation details
@@ -92,18 +94,18 @@ steps.
 
 *** Serial
 The serial solution uses no type of parallelization and runs the
-binning algorithm as expected, in $O(n)$ time (where $n$ is the number
+binning algorithm as described above, in $O(n)$ time (where $n$ is the number
 of particles).
 
 *** OpenMP
 The OpenMP version implements a parallel version of the binning
 algorithm. It uses the ~#pragma omp parallel for~ directive for
 parallelization and synchronization. The directive ~#pragma omp
-critical~ is used to ensure the critical region of the algorithm is
+critical~ is used to ensure the critical regions of the algorithm is
 executed atomically.
 
 *** Pthreads
-The pthreads implementation uses more low level synchronization
+The pthreads implementation uses lower level synchronization
 primitives, namely a barrier for synchronization and a mutex for
 locking. The particle array is split into as many chunks as we have
 threads, and each thread gets to work on its own chunk.
@@ -111,10 +113,43 @@ threads, and each thread gets to work on its own chunk.
 ** Distributed memory layout
 
 Using a distributed memory layout forces an addition in the algorithm
-design. We partition the grid of particles into rows and make each row
-an object of parallelization. Every row 'talks' to its neighbours on
-top and below. This allows the row to send and receive the particles
-closest to the edges for a more accurate description of the forces.
+design. Instead of each process being responsible for a certain set of
+particles as in the shared memory model, each process is instead
+responsible for a 'region' in space, or equivalently a certain set of
+'bins'. First, we distribute the 'bins' over the different processes.
+In our case, this is done vertically, so a process is in charge of all
+particles in a certain range in y-coordinates. During the force
+calculation, each process sends information about the particles in the
+topmost and bottommost bins to its neighboring processes for them to
+be able to perform the force calculation. After the move calculation
+has been performed, the particles that moved into another processes'
+region is sent to that process. This algorithm is expressed in the
+following pseudocode:
+
+#+BEGIN_SRC python
+R = get_region()
+P = particles_in(R)
+N = P.size()
+
+def simulate_step():
+    # Get neighboring particles from other processes here
+    # Apply force
+    for particle in P:
+        neighbors = find_neighbors(particle)
+        for n in neighbors:
+            particle.applyForceOf(n)
+    # Move particles
+    for particle in P:
+        particle.move()
+    # Send particles that moved into other regions to the owning process of that region here
+#+END_SRC
+
+The message passing is done synchronously, due to risk of buffer
+overflow when using asynchronous. In order to prevent deadlocking, the
+message-passing is done in order; on the first pass messages are sent
+from the first process to the last, and then back again from the last
+to the first.
+
 
 
 *** MPI
@@ -150,6 +185,30 @@ still being able to beat the non-linear implementation given.
 
 
 * Discussion and thoughts
+
+** PTHREADS
+
+** OPENMP
+In terms of ease of use, openMP was by far the best of the methods. It
+literally took no more than 4 extra lines of code in the serial
+version of the program to parallelize it. From the results we also see
+that this method was the most effective, and the only one that
+actually performed better than the serial implementation.
+
+** MPI
+The amount of contention in the MPI implementation was quite large
+since information about neighboring particles was needed to be
+constantly be sent at each iteration. This meant that the time needed
+to perform the particle physics computations was quite small compared
+to the amount of time spent on message passing. A distributed memory
+model was perhaps not the most well suited model for this problem,
+since the memory required (the particle data) was not independent
+between processes but rather, in order for a process to be able to
+process its own particles it required information about another
+process' particles. Thus, if one is concerned more about memory usage
+than about speed, this model would be more effective, but in our case
+it quickly reached a bottleneck in speed for higher number of
+processes.
 
 *TODO*
 
