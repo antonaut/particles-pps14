@@ -1,0 +1,114 @@
+u-shell:
+
+cmarte@share-01:~/particles$ mpirun -np 2 ./linmpi -n 200000
+size: 44.721360
+Number of cells per process: 2000 * 1000
+Scale: 44.721360
+Lower cell bound: 0 Upper cell bound: 1000
+size: 44.721360
+pid: 1 Lower cell bound: 1000 Upper cell bound: 2000
+pid: 0 Lower cell bound: 0 Upper cell bound: 1000
+n = 200000, simulation time = 49.8262 seconds
+n = 200000, simulation time = 49.8266 seconds
+cmarte@share-01:~/particles$ mpirun -np 8 ./linmpi -n 200000
+size: 44.721360
+pid: 4 Lower cell bound: 1000 Upper cell bound: 1250
+size: 44.721360
+Number of cells per process: 2000 * 250
+Scale: 44.721360
+Lower cell bound: 0 Upper cell bound: 250
+size: 44.721360
+pid: 2 Lower cell bound: 500 Upper cell bound: 750
+size: 44.721360
+pid: 5 Lower cell bound: 1250 Upper cell bound: 1500
+size: 44.721360
+pid: 3 Lower cell bound: 750 Upper cell bound: 1000
+size: 44.721360
+pid: 7 Lower cell bound: 1750 Upper cell bound: 2000
+size: 44.721360
+pid: 1 Lower cell bound: 250 Upper cell bound: 500
+size: 44.721360
+pid: 6 Lower cell bound: 1500 Upper cell bound: 1750
+pid: 0 Lower cell bound: 0 Upper cell bound: 250
+n = 200000, simulation time = 31.6587 seconds
+n = 200000, simulation time = 31.6588 seconds
+n = 200000, simulation time = 31.6604 seconds
+n = 200000, simulation time = 31.6601 seconds
+n = 200000, simulation time = 31.6602 seconds
+n = 200000, simulation time = 31.6609 seconds
+n = 200000, simulation time = 31.6613 seconds
+n = 200000, simulation time = 31.6609 seconds
+cmarte@share-01:~/particles$ mpirun -np 4 ./linmpi -n 200000
+size: 44.721360
+pid: 1 Lower cell bound: 500 Upper cell bound: 1000
+size: 44.721360
+pid: 3 Lower cell bound: 1500 Upper cell bound: 2000
+size: 44.721360
+pid: 2 Lower cell bound: 1000 Upper cell bound: 1500
+size: 44.721360
+Number of cells per process: 2000 * 500
+Scale: 44.721360
+Lower cell bound: 0 Upper cell bound: 500
+pid: 0 Lower cell bound: 0 Upper cell bound: 500
+n = 200000, simulation time = 33.0716 seconds
+n = 200000, simulation time = 33.0718 seconds
+n = 200000, simulation time = 33.0722 seconds
+n = 200000, simulation time = 33.0719 seconds
+
+
+
+
+cmarte@share-01:~/particles$ mpirun -np 2 ./linmpi -n 100000
+size: 31.622777
+pid: 1 Lower cell bound: 707 Upper cell bound: 1414
+size: 31.622777
+Number of cells per process: 1414 * 707
+Scale: 44.714606
+Lower cell bound: 0 Upper cell bound: 707
+pid: 0 Lower cell bound: 0 Upper cell bound: 707
+n = 100000, simulation time = 24.0646 seconds
+n = 100000, simulation time = 24.0644 seconds
+cmarte@share-01:~/particles$ mpirun -np 4 ./linmpi -n 100000
+size: 31.622777
+Number of cells per process: 1412 * 353
+Scale: 44.651361
+Lower cell bound: 0 Upper cell bound: 353
+size: 31.622777
+pid: 1 Lower cell bound: 353 Upper cell bound: 706
+size: 31.622777
+pid: 3 Lower cell bound: 1059 Upper cell bound: 1412
+size: 31.622777
+pid: 2 Lower cell bound: 706 Upper cell bound: 1059
+pid: 0 Lower cell bound: 0 Upper cell bound: 353
+n = 100000, simulation time = 16.1714 seconds
+n = 100000, simulation time = 16.1717 seconds
+n = 100000, simulation time = 16.1714 seconds
+n = 100000, simulation time = 16.1713 seconds
+cmarte@share-01:~/particles$ mpirun -np 8 ./linmpi -n 100000
+size: 31.622777
+pid: 2 Lower cell bound: 352 Upper cell bound: 528
+size: 31.622777
+size: 31.622777
+Number of cells per process: 1408 * 176
+Scale: 44.524869
+Lower cell bound: 0 Upper cell bound: 176
+size: 31.622777
+pid: 4 Lower cell bound: 704 Upper cell bound: 880
+size: 31.622777
+pid: 1 Lower cell bound: 176 Upper cell bound: 352
+size: 31.622777
+pid: 6 Lower cell bound: 1056 Upper cell bound: 1232
+size: 31.622777
+pid: 7 Lower cell bound: 1232 Upper cell bound: 1408
+pid: 5 Lower cell bound: 880 Upper cell bound: 1056
+size: 31.622777
+pid: 3 Lower cell bound: 528 Upper cell bound: 704
+pid: 0 Lower cell bound: 0 Upper cell bound: 176
+n = 100000, simulation time = 15.5196 seconds
+n = 100000, simulation time = 15.5193 seconds
+n = 100000, simulation time = 15.5196 seconds
+n = 100000, simulation time = 15.5192 seconds
+n = 100000, simulation time = 15.5193 seconds
+n = 100000, simulation time = 15.5195 seconds
+n = 100000, simulation time = 15.5191 seconds
+n = 100000, simulation time = 15.5194 seconds

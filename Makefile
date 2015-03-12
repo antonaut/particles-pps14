@@ -5,7 +5,7 @@ CC = g++
 MPCC =  mpic++
 OPENMP = -fopenmp
 LIBS = -lm
-CFLAGS = -g -Wall
+CFLAGS = -g -Wall -O2 -std=c++11
 
 TARGETS = serial pthreads openmp mpi linearserial linpthreads linopenmp linmpi
 
