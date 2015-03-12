@@ -1,4 +1,4 @@
-particles = 2000, simulation time = 0.209216 seconds
+
 particles = 4000, simulation time = 0.459393 seconds
 particles = 8000, simulation time = 0.9433 seconds
 particles = 16000, simulation time = 3.00457 seconds
