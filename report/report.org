@@ -156,7 +156,7 @@ to the first.
 We estimate the contention of our implementation to be quite high, but
 still being able to beat the non-linear implementation given.
 
-* Calculations and results
+* Measurements, calculations and plots
 
 ** Linearity
    By plotting the size of the input $n$ and the running time
@@ -227,8 +227,6 @@ processes.
  pthreads = Meh,
  MPI = ARE YOU JOKING!?!?EIFJIDSOAJFaz
 
-
-* Plots and figures
 
 * Appendix
 
