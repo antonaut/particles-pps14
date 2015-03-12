@@ -1,28 +1,13 @@
-size: 4.472136
-integer size: 200
-Scale: 44.721360
-n = 2000, simulation time = 0.209216 seconds
-size: 6.324555
-integer size: 283
-Scale: 44.746229
-n = 4000, simulation time = 0.459393 seconds
-size: 8.944272
-integer size: 400
-Scale: 44.721360
-n = 8000, simulation time = 0.9433 seconds
-size: 12.649111
-integer size: 566
-Scale: 44.746229
-n = 16000, simulation time = 3.00457 seconds
-size: 17.888544
-integer size: 800
-Scale: 44.721360
-n = 32000, simulation time = 8.81252 seconds
-size: 25.298221
-integer size: 1132
-Scale: 44.746229
-n = 64000, simulation time = 19.3659 seconds
-size: 20.000000
-integer size: 895
-Scale: 44.750000
-n = 40000, simulation time = 11.2636 seconds
+particles = 2000, simulation time = 0.209216 seconds
+
+particles = 4000, simulation time = 0.459393 seconds
+
+particles = 8000, simulation time = 0.9433 seconds
+
+particles = 16000, simulation time = 3.00457 seconds
+
+particles = 32000, simulation time = 8.81252 seconds
+
+particles = 40000, simulation time = 11.2636 seconds
+
+particles = 64000, simulation time = 19.3659 seconds

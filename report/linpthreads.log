@@ -1,12 +1,5 @@
-size: 20.000000
-integer size: 895
-Scale: 44.750000
-n = 40000, n_threads = 2, simulation time = 22.8733 seconds
-size: 20.000000
-integer size: 895
-Scale: 44.750000
-n = 40000, n_threads = 4, simulation time = 12.5229 seconds
-size: 20.000000
-integer size: 895
-Scale: 44.750000
-n = 40000, n_threads = 8, simulation time = 8.96185 seconds
+processes = 2, particles = 40000, simulation time = 22.8733 seconds
+
+processes = 4, particles = 40000, simulation time = 12.5229 seconds
+
+processes = 8, particles = 40000, simulation time = 8.96185 seconds
