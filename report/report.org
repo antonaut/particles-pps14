@@ -175,18 +175,32 @@ still being able to beat the non-linear implementation given.
 
 [[./loglog-serial.png]]
 
+\newpage
 ** Comparison of running times
-|          |   T | p=1 | p=2 | p=4 |
-|----------+-----+-----+-----+-----|
-| Serial   | 1.0 | 1.0 | 1.0 | 1.0 |
-| OpenMP   |     |     |     |     |
-| Pthreads |     |     |     |     |
-| MPI      |     |     |     |     |
 
+** Serial, running on u-shell.csc.kth.se
+
+#+INCLUDE: "./linearserial.log" src sh
+
+** Pthreads, running on u-shell.csc.kth.se
+
+#+INCLUDE: "./linpthreads.log" src sh
+
+** OpenMP, running on u-shell.csc.kth.se
+
+#+INCLUDE: "./linopenmp.log" src sh
+
+** MPI, running on u-shell.csc.kth.se
+
+#+INCLUDE: "./linmpi.log" src sh
 
 * Discussion and thoughts
 
 ** PTHREADS
+The implementation using pthreads was pretty straight forward. We
+expected it to perform way better and believe it to be the
+synchronization stealing a lot of the CPU-time. An extension of this
+project would go into detail of investigating this issue further.
 
 ** OPENMP
 In terms of ease of use, openMP was by far the best of the methods. It
@@ -209,28 +223,10 @@ process' particles. Thus, if one is concerned more about memory usage
 than about speed, this model would be more effective, but in our case
 it quickly reached a bottleneck in speed for higher number of
 processes.
-
-*TODO*
-
-
- Speedup plots that show how closely your parallel codes approach the
- idealized p-times speedup and a discussion on whether it is possible
- to do better.
-
- Where does the time go? Consider breaking down the runtime into
- computation time, synchronization time and/or communication time. How
- do they scale with p?
-
- A discussion on using pthreads, OpenMP and MPI.
-
- OpenMP = YES, GOD YES!
- pthreads = Meh,
- MPI = ARE YOU JOKING!?!?EIFJIDSOAJFaz
-
-
+\newpage
 * Appendix
 
-** Serial (linearity)
+** Output of running linearserial (for 'proving' linearity)
 
 *NOTE:* Some runs are omitted below. This is just an excerpt from were
 the calculation numbers were taken.
@@ -338,66 +334,6 @@ Scale: 44.725000
 n = 160000, simulation time = 110.29 seconds
 #+END_SRC
 
-** OpenMP
+** Profiling of linpthreads
 
-#+BEGIN_SRC sh
-[aerholt@localhost particles-pps14]$ OMP_NUM_THREADS=1 ./linopenmp -n 40000
-size: 20.000000
-integer size: 895
-Scale: 44.750000
-n = 40000, simulation time = 26.9827 seconds
-[aerholt@localhost particles-pps14]$ OMP_NUM_THREADS=2 ./linopenmp -n 40000
-size: 20.000000
-integer size: 895
-Scale: 44.750000
-n = 40000, simulation time = 11.3331 seconds
-[aerholt@localhost particles-pps14]$ OMP_NUM_THREADS=4 ./linopenmp -n 40000
-size: 20.000000
-integer size: 895
-Scale: 44.750000
-n = 40000, simulation time = 9.25681 seconds
-#+END_SRC
-
-** MPI
-
-#+BEGIN_SRC
-[aerholt@localhost particles-pps14]$ mpirun -np 2 ./linmpi -n 100000
-size: 31.622777
-Number of cells per process: 1414 * 707
-Scale: 44.714606
-Lower cell bound: 0 Upper cell bound: 707
-size: 31.622777
-pid: 1 Lower cell bound: 707 Upper cell bound: 1414
-pid: 0 Lower cell bound: 0 Upper cell bound: 707
-n = 100000, simulation time = 33.8302 seconds
-n = 100000, simulation time = 33.8876 seconds
-[aerholt@localhost particles-pps14]$ mpirun -np 3 ./linmpi -n 100000
-size: 31.622777
-Number of cells per process: 1413 * 471
-Scale: 44.682983
-Lower cell bound: 0 Upper cell bound: 471
-size: 31.622777
-size: 31.622777
-pid: 1 Lower cell bound: 471 Upper cell bound: 942
-pid: 2 Lower cell bound: 942 Upper cell bound: 1413
-pid: 0 Lower cell bound: 0 Upper cell bound: 471
-n = 100000, simulation time = 32.2718 seconds
-n = 100000, simulation time = 32.2722 seconds
-n = 100000, simulation time = 32.2805 seconds
-[aerholt@localhost particles-pps14]$ mpirun -np 4 ./linmpi -n 100000
-size: 31.622777
-pid: 1 Lower cell bound: 353 Upper cell bound: 706
-size: 31.622777
-Number of cells per process: 1412 * 353
-Scale: 44.651361
-Lower cell bound: 0 Upper cell bound: 353
-size: 31.622777
-pid: 2 Lower cell bound: 706 Upper cell bound: 1059
-size: 31.622777
-pid: 3 Lower cell bound: 1059 Upper cell bound: 1412
-pid: 0 Lower cell bound: 0 Upper cell bound: 353
-n = 100000, simulation time = 29.3039 seconds
-n = 100000, simulation time = 29.299 seconds
-n = 100000, simulation time = 29.3278 seconds
-n = 100000, simulation time = 29.3274 seconds
-#+END_SRC
+Please see "pthreads-profile" in kcachegrind or similar.

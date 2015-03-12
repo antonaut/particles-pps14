@@ -1,4 +1,4 @@
-% Created 2015-03-12 Thu 15:32
+% Created 2015-03-12 Thu 18:23
 \documentclass[11pt]{article}
 \usepackage[latin1]{inputenc}
 \usepackage[T1]{fontenc}
@@ -70,7 +70,7 @@ position and velocity.
 
 The algorithm we have chosen to implement is probably best known as
 binning. We divide the field of particles into several 'bins' (like a
-grid) which we then use to filter out which particles we should take
+grid) which we then use to filter out which particles we need to take
 into account when calculating forces. Using a shared memory layout
 with this type of design requires little to no changes for an actual
 implementation. With a distributed memory layout, the design requires
@@ -88,8 +88,10 @@ def simulate_step():
         neighbors = find_neighbors(particle)
         for n in neighbors:
             particle.applyForceOf(n)
-        # Synchronize here
-    return P
+    # Synchronize here
+    for particle in P:
+        particle.move()
+    # Synchronize here
 \end{verbatim}
 
 Where the size of neighbors is significantly smaller than N and
@@ -97,9 +99,9 @@ therefore makes the binning algorithm's running time $\in O(N)$.
 
 $$ neighbors.size() << N $$
 
-The calculation part which we parallelize is obviously the force calculation for
+The calculation part which we parallelize is obviously the force calculation and the move calculation for
 every particle. This project limits itself not to discuss whether or
-not one would gain anything from also parallelizing over several time
+not one would gain anything from also parallelizing over time
 steps.
 
 \section*{Implementation details}
@@ -111,19 +113,19 @@ steps.
 \subsubsection*{Serial}
 \label{sec-3-1-1}
 The serial solution uses no type of parallelization and runs the
-binning algorithm as expected, in $O(n)$ time (where $n$ is the number
+binning algorithm as described above, in $O(n)$ time (where $n$ is the number
 of particles).
 
 \subsubsection*{OpenMP}
 \label{sec-3-1-2}
 The OpenMP version implements a parallel version of the binning
 algorithm. It uses the \verb~#pragma omp parallel for~ directive for
-parallelization and synchronization. The directive \verb~#pragma omp critical~ is used to ensure the critical region of the algorithm is
+parallelization and synchronization. The directive \verb~#pragma omp critical~ is used to ensure the critical regions of the algorithm is
 executed atomically.
 
 \subsubsection*{Pthreads}
 \label{sec-3-1-3}
-The pthreads implementation uses more low level synchronization
+The pthreads implementation uses lower level synchronization
 primitives, namely a barrier for synchronization and a mutex for
 locking. The particle array is split into as many chunks as we have
 threads, and each thread gets to work on its own chunk.
@@ -132,10 +134,43 @@ threads, and each thread gets to work on its own chunk.
 \label{sec-3-2}
 
 Using a distributed memory layout forces an addition in the algorithm
-design. We partition the grid of particles into rows and make each row
-an object of parallelization. Every row 'talks' to its neighbours on
-top and below. This allows the row to send and receive the particles
-closest to the edges for a more accurate description of the forces.
+design. Instead of each process being responsible for a certain set of
+particles as in the shared memory model, each process is instead
+responsible for a 'region' in space, or equivalently a certain set of
+'bins'. First, we distribute the 'bins' over the different processes.
+In our case, this is done vertically, so a process is in charge of all
+particles in a certain range in y-coordinates. During the force
+calculation, each process sends information about the particles in the
+topmost and bottommost bins to its neighboring processes for them to
+be able to perform the force calculation. After the move calculation
+has been performed, the particles that moved into another processes'
+region is sent to that process. This algorithm is expressed in the
+following pseudocode:
+
+\begin{verbatim}
+R = get_region()
+P = particles_in(R)
+N = P.size()
+
+def simulate_step():
+    # Get neighboring particles from other processes here
+    # Apply force
+    for particle in P:
+        neighbors = find_neighbors(particle)
+        for n in neighbors:
+            particle.applyForceOf(n)
+    # Move particles
+    for particle in P:
+        particle.move()
+    # Send particles that moved into other regions to the owning process of that region here
+\end{verbatim}
+
+The message passing is done synchronously, due to risk of buffer
+overflow when using asynchronous. In order to prevent deadlocking, the
+message-passing is done in order; on the first pass messages are sent
+from the first process to the last, and then back again from the last
+to the first.
+
 
 
 \subsubsection*{MPI}
@@ -143,7 +178,7 @@ closest to the edges for a more accurate description of the forces.
 We estimate the contention of our implementation to be quite high, but
 still being able to beat the non-linear implementation given.
 
-\section*{Calculations and results}
+\section*{Measurements, calculations and plots}
 \label{sec-4}
 
 \subsection*{Linearity}
@@ -168,49 +203,88 @@ n & t$_{\text{serial}}$ & log$_{\text{2}}$(t$_{\text{serial}}$) & log$_{\text{2}
 
 \includegraphics[width=.9\linewidth]{./loglog-serial.png}
 
+\newpage
 \subsection*{Comparison of running times}
 \label{sec-4-2}
-\begin{center}
-\begin{tabular}{lrrrr}
- & T & p=1 & p=2 & p=4\\
-\hline
-Serial & 1.0 & 1.0 & 1.0 & 1.0\\
-OpenMP &  &  &  & \\
-Pthreads &  &  &  & \\
-MPI &  &  &  & \\
-\end{tabular}
-\end{center}
 
+\subsection*{Serial, running on u-shell.csc.kth.se}
+\label{sec-4-3}
+
+\begin{verbatim}
+particles = 4000, simulation time = 0.459393 seconds
+particles = 8000, simulation time = 0.9433 seconds
+particles = 16000, simulation time = 3.00457 seconds
+particles = 32000, simulation time = 8.81252 seconds
+particles = 64000, simulation time = 19.3659 seconds
+particles = 40000, simulation time = 11.2636 seconds
+\end{verbatim}
+
+\subsection*{Pthreads, running on u-shell.csc.kth.se}
+\label{sec-4-4}
+
+\begin{verbatim}
+processes = 2, particles = 40000, simulation time = 22.8733 seconds
+processes = 4, particles = 40000, simulation time = 12.5229 seconds
+processes = 8, particles = 40000, simulation time = 8.96185 seconds
+\end{verbatim}
+
+\subsection*{OpenMP, running on u-shell.csc.kth.se}
+\label{sec-4-5}
+
+\begin{verbatim}
+processes = 2, particles = 40000, simulation time = 6.35436 seconds
+processes = 4, particles = 40000, simulation time = 3.55033 seconds
+processes = 8, particles = 40000, simulation time = 3.12963 seconds
+\end{verbatim}
+
+\subsection*{MPI, running on u-shell.csc.kth.se}
+\label{sec-4-6}
+
+\begin{verbatim}
+processes = 2, particles = 40000, simulation time = 9.17019 seconds
+processes = 4, particles = 40000, simulation time = 6.37624 seconds
+processes = 8, particles = 40000, simulation time = 6.16595 seconds
+\end{verbatim}
 
 \section*{Discussion and thoughts}
 \label{sec-5}
 
-\textbf{TODO}
+\subsection*{PTHREADS}
+\label{sec-5-1}
+The implementation using pthreads was pretty straight forward. We
+expected it to perform way better and believe it to be the
+synchronization stealing a lot of the CPU-time. An extension of this
+project would go into detail of investigating this issue further.
 
+\subsection*{OPENMP}
+\label{sec-5-2}
+In terms of ease of use, openMP was by far the best of the methods. It
+literally took no more than 4 extra lines of code in the serial
+version of the program to parallelize it. From the results we also see
+that this method was the most effective, and the only one that
+actually performed better than the serial implementation.
 
-Speedup plots that show how closely your parallel codes approach the
-idealized p-times speedup and a discussion on whether it is possible
-to do better.
-
-Where does the time go? Consider breaking down the runtime into
-computation time, synchronization time and/or communication time. How
-do they scale with p?
-
-A discussion on using pthreads, OpenMP and MPI.
-
-OpenMP = YES, GOD YES!
-pthreads = Meh,
-MPI = ARE YOU JOKING!?!?EIFJIDSOAJFaz
-
-
-\section*{Plots and figures}
+\subsection*{MPI}
+\label{sec-5-3}
+The amount of contention in the MPI implementation was quite large
+since information about neighboring particles was needed to be
+constantly be sent at each iteration. This meant that the time needed
+to perform the particle physics computations was quite small compared
+to the amount of time spent on message passing. A distributed memory
+model was perhaps not the most well suited model for this problem,
+since the memory required (the particle data) was not independent
+between processes but rather, in order for a process to be able to
+process its own particles it required information about another
+process' particles. Thus, if one is concerned more about memory usage
+than about speed, this model would be more effective, but in our case
+it quickly reached a bottleneck in speed for higher number of
+processes.
+\newpage
+\section*{Appendix}
 \label{sec-6}
 
-\section*{Appendix}
-\label{sec-7}
-
-\subsection*{Serial (linearity)}
-\label{sec-7-1}
+\subsection*{Output of running linearserial (for 'proving' linearity)}
+\label{sec-6-1}
 
 \textbf{NOTE:} Some runs are omitted below. This is just an excerpt from were
 the calculation numbers were taken.
@@ -318,70 +392,9 @@ Scale: 44.725000
 n = 160000, simulation time = 110.29 seconds
 \end{verbatim}
 
-\subsection*{OpenMP}
-\label{sec-7-2}
+\subsection*{Profiling of linpthreads}
+\label{sec-6-2}
 
-\begin{verbatim}
-[aerholt@localhost particles-pps14]$ OMP_NUM_THREADS=1 ./linopenmp -n 40000
-size: 20.000000
-integer size: 895
-Scale: 44.750000
-n = 40000, simulation time = 26.9827 seconds
-[aerholt@localhost particles-pps14]$ OMP_NUM_THREADS=2 ./linopenmp -n 40000
-size: 20.000000
-integer size: 895
-Scale: 44.750000
-n = 40000, simulation time = 11.3331 seconds
-[aerholt@localhost particles-pps14]$ OMP_NUM_THREADS=4 ./linopenmp -n 40000
-size: 20.000000
-integer size: 895
-Scale: 44.750000
-n = 40000, simulation time = 9.25681 seconds
-\end{verbatim}
-
-\subsection*{MPI}
-\label{sec-7-3}
-
-\begin{verbatim}
-[aerholt@localhost particles-pps14]$ mpirun -np 2 ./linmpi -n 100000
-size: 31.622777
-Number of cells per process: 1414 * 707
-Scale: 44.714606
-Lower cell bound: 0 Upper cell bound: 707
-size: 31.622777
-pid: 1 Lower cell bound: 707 Upper cell bound: 1414
-pid: 0 Lower cell bound: 0 Upper cell bound: 707
-n = 100000, simulation time = 33.8302 seconds
-n = 100000, simulation time = 33.8876 seconds
-[aerholt@localhost particles-pps14]$ mpirun -np 3 ./linmpi -n 100000
-size: 31.622777
-Number of cells per process: 1413 * 471
-Scale: 44.682983
-Lower cell bound: 0 Upper cell bound: 471
-size: 31.622777
-size: 31.622777
-pid: 1 Lower cell bound: 471 Upper cell bound: 942
-pid: 2 Lower cell bound: 942 Upper cell bound: 1413
-pid: 0 Lower cell bound: 0 Upper cell bound: 471
-n = 100000, simulation time = 32.2718 seconds
-n = 100000, simulation time = 32.2722 seconds
-n = 100000, simulation time = 32.2805 seconds
-[aerholt@localhost particles-pps14]$ mpirun -np 4 ./linmpi -n 100000
-size: 31.622777
-pid: 1 Lower cell bound: 353 Upper cell bound: 706
-size: 31.622777
-Number of cells per process: 1412 * 353
-Scale: 44.651361
-Lower cell bound: 0 Upper cell bound: 353
-size: 31.622777
-pid: 2 Lower cell bound: 706 Upper cell bound: 1059
-size: 31.622777
-pid: 3 Lower cell bound: 1059 Upper cell bound: 1412
-pid: 0 Lower cell bound: 0 Upper cell bound: 353
-n = 100000, simulation time = 29.3039 seconds
-n = 100000, simulation time = 29.299 seconds
-n = 100000, simulation time = 29.3278 seconds
-n = 100000, simulation time = 29.3274 seconds
-\end{verbatim}
+Please see "pthreads-profile" in kcachegrind or similar.
 % Emacs 24.4.1 (Org mode 8.2.10)
 \end{document}
