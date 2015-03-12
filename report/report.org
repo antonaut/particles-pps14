@@ -32,7 +32,8 @@
 
 This report serves to describe a programming project in the course
 ID1217, Concurrent programming. The project was to implement an
-algorithm for particle simulation which ran in time close to $O(n)$.
+algorithm for a parallel particle simulation which ran in time close to $O(T/p)$,
+where $T$ is the running time of the algorithm running on $p$ processors.
 
 \end{abstract}
 \newpage
@@ -122,12 +123,31 @@ still being able to beat the non-linear implementation given.
 
 * Calculations and results
 
+** Linearity
+   By plotting the size of the input $n$ and the running time
+   $t_serial$ we conclude the linearity of our algorithm.
+
+   See Appendix for output of the actual runs.
+
+|      n | t_serial   | log_2(t_serial) | log_2(n)    |
+|--------+------------+-----------------+-------------|
+|   5000 | 2.530250   | 0.84499156      | 12.28771238 |
+|  10000 | 5.798080   | 1.599769861     | 13.28771238 |
+|  20000 | 9.404700   | 2.040036861     | 14.28771238 |
+|  40000 | 23.231000  | 2.863146195     | 15.28771238 |
+|  80000 | 54.164900  | 3.633705119     | 16.28771238 |
+| 160000 | 110.290000 | 4.280958177     | 17.28771238 |
+
+[[./loglog-serial.png]]
+
+** Comparison of running times
 |          |   T | p=1 | p=2 | p=4 |
 |----------+-----+-----+-----+-----|
 | Serial   | 1.0 | 1.0 | 1.0 | 1.0 |
 | OpenMP   |     |     |     |     |
 | Pthreads |     |     |     |     |
 | MPI      |     |     |     |     |
+
 
 * Discussion and thoughts
 
@@ -150,3 +170,177 @@ still being able to beat the non-linear implementation given.
 
 
 * Plots and figures
+
+* Appendix
+
+** Serial (linearity)
+
+*NOTE:* Some runs are omitted below. This is just an excerpt from were
+the calculation numbers were taken.
+
+#+BEGIN_SRC sh
+[aerholt@localhost particles-pps14]$ ./linearserial -n 5000
+size: 7.071068
+integer size: 317
+Scale: 44.830570
+n = 5000, simulation time = 1.94145 seconds
+[aerholt@localhost particles-pps14]$ ./linearserial -n 5000
+size: 7.071068
+integer size: 317
+Scale: 44.830570
+n = 5000, simulation time = 2.10103 seconds
+[aerholt@localhost particles-pps14]$ ./linearserial -n 5000
+size: 7.071068
+integer size: 317
+Scale: 44.830570
+n = 5000, simulation time = 2.53025 seconds
+[aerholt@localhost particles-pps14]$ ./linearserial -n 5000
+size: 7.071068
+integer size: 317
+Scale: 44.830570
+n = 5000, simulation time = 2.58599 seconds
+[aerholt@localhost particles-pps14]$ ./linearserial -n 5000
+size: 7.071068
+integer size: 317
+Scale: 44.830570
+n = 5000, simulation time = 2.54449 seconds
+[aerholt@localhost particles-pps14]$ ./linearserial -n 10000
+size: 10.000000
+integer size: 448
+Scale: 44.800000
+n = 10000, simulation time = 5.79808 seconds
+[aerholt@localhost particles-pps14]$ ./linearserial -n 10000
+size: 10.000000
+integer size: 448
+Scale: 44.800000
+n = 10000, simulation time = 5.81343 seconds
+[aerholt@localhost particles-pps14]$ ./linearserial -n 10000
+size: 10.000000
+integer size: 448
+Scale: 44.800000
+n = 10000, simulation time = 5.73867 seconds
+[aerholt@localhost particles-pps14]$ ./linearserial -n 10000
+size: 10.000000
+integer size: 448
+Scale: 44.800000
+n = 10000, simulation time = 5.61922 seconds
+[aerholt@localhost particles-pps14]$ ./linearserial -n 10000
+size: 10.000000
+integer size: 448
+Scale: 44.800000
+n = 10000, simulation time = 6.2238 seconds
+[aerholt@localhost particles-pps14]$ ./linearserial -n 20000
+size: 14.142136
+integer size: 633
+Scale: 44.759859
+n = 20000, simulation time = 9.4047 seconds
+[aerholt@localhost particles-pps14]$ ./linearserial -n 20000
+size: 14.142136
+integer size: 633
+Scale: 44.759859
+n = 20000, simulation time = 8.65654 seconds
+[aerholt@localhost particles-pps14]$ ./linearserial -n 40000
+size: 20.000000
+integer size: 895
+Scale: 44.750000
+n = 40000, simulation time = 31.0985 seconds
+[aerholt@localhost particles-pps14]$ ./linearserial -n 40000
+size: 20.000000
+integer size: 895
+Scale: 44.750000
+n = 40000, simulation time = 23.231 seconds
+[aerholt@localhost particles-pps14]$ ./linearserial -n 40000
+size: 20.000000
+integer size: 895
+Scale: 44.750000
+n = 40000, simulation time = 25.2277 seconds
+[aerholt@localhost particles-pps14]$ ./linearserial -n 80000
+size: 28.284271
+integer size: 1265
+Scale: 44.724504
+n = 80000, simulation time = 60.2246 seconds
+[aerholt@localhost particles-pps14]$ ./linearserial -n 80000
+size: 28.284271
+integer size: 1265
+Scale: 44.724504
+n = 80000, simulation time = 49.7609 seconds
+[aerholt@localhost particles-pps14]$ ./linearserial -n 80000
+size: 28.284271
+integer size: 1265
+Scale: 44.724504
+n = 80000, simulation time = 54.1649 seconds
+[aerholt@localhost particles-pps14]$ ./linearserial -n 160000
+size: 40.000000
+integer size: 1789
+Scale: 44.725000
+n = 160000, simulation time = 115.779 seconds
+[aerholt@localhost particles-pps14]$ ./linearserial -n 160000
+size: 40.000000
+integer size: 1789
+Scale: 44.725000
+n = 160000, simulation time = 110.29 seconds
+#+END_SRC
+
+** OpenMP
+
+#+BEGIN_SRC sh
+[aerholt@localhost particles-pps14]$ OMP_NUM_THREADS=1 ./linopenmp -n 40000
+size: 20.000000
+integer size: 895
+Scale: 44.750000
+n = 40000, simulation time = 26.9827 seconds
+[aerholt@localhost particles-pps14]$ OMP_NUM_THREADS=2 ./linopenmp -n 40000
+size: 20.000000
+integer size: 895
+Scale: 44.750000
+n = 40000, simulation time = 11.3331 seconds
+[aerholt@localhost particles-pps14]$ OMP_NUM_THREADS=4 ./linopenmp -n 40000
+size: 20.000000
+integer size: 895
+Scale: 44.750000
+n = 40000, simulation time = 9.25681 seconds
+#+END_SRC
+
+** MPI
+
+#+BEGIN_SRC
+[aerholt@localhost particles-pps14]$ mpirun -np 2 ./linmpi -n 100000
+size: 31.622777
+Number of cells per process: 1414 * 707
+Scale: 44.714606
+Lower cell bound: 0 Upper cell bound: 707
+size: 31.622777
+pid: 1 Lower cell bound: 707 Upper cell bound: 1414
+pid: 0 Lower cell bound: 0 Upper cell bound: 707
+n = 100000, simulation time = 33.8302 seconds
+n = 100000, simulation time = 33.8876 seconds
+[aerholt@localhost particles-pps14]$ mpirun -np 3 ./linmpi -n 100000
+size: 31.622777
+Number of cells per process: 1413 * 471
+Scale: 44.682983
+Lower cell bound: 0 Upper cell bound: 471
+size: 31.622777
+size: 31.622777
+pid: 1 Lower cell bound: 471 Upper cell bound: 942
+pid: 2 Lower cell bound: 942 Upper cell bound: 1413
+pid: 0 Lower cell bound: 0 Upper cell bound: 471
+n = 100000, simulation time = 32.2718 seconds
+n = 100000, simulation time = 32.2722 seconds
+n = 100000, simulation time = 32.2805 seconds
+[aerholt@localhost particles-pps14]$ mpirun -np 4 ./linmpi -n 100000
+size: 31.622777
+pid: 1 Lower cell bound: 353 Upper cell bound: 706
+size: 31.622777
+Number of cells per process: 1412 * 353
+Scale: 44.651361
+Lower cell bound: 0 Upper cell bound: 353
+size: 31.622777
+pid: 2 Lower cell bound: 706 Upper cell bound: 1059
+size: 31.622777
+pid: 3 Lower cell bound: 1059 Upper cell bound: 1412
+pid: 0 Lower cell bound: 0 Upper cell bound: 353
+n = 100000, simulation time = 29.3039 seconds
+n = 100000, simulation time = 29.299 seconds
+n = 100000, simulation time = 29.3278 seconds
+n = 100000, simulation time = 29.3274 seconds
+#+END_SRC
